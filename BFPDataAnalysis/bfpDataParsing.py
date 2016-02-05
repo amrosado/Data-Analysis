@@ -91,9 +91,9 @@ class BFPData:
         return zeroForcePP
 
     def convertToForce(self, peakPositionArray, zeroForcePP, expPara):
-        springConstnat = expPara['springConstant']
+        springConstant = expPara['springConstant']
         differenceFromZero = np.array(peakPositionArray) - zeroForcePP
-        timesSpringConstant = differenceFromZero * springConstnat
+        timesSpringConstant = differenceFromZero * expPara['u2ratio'] * 1e3 * springConstant
         return timesSpringConstant
 
     def analyzeExperimentalData(self, expPara, dataArray):
@@ -138,6 +138,10 @@ class BFPData:
 
         zeroPeakPosition = self.determineZeroForcePixelPosition(zeroState)
         forceArray = self.convertToForce(peakLocation, zeroPeakPosition, expPara)
+        timeArray = np.array(time)
+
+        averagesDict = self.plusMinusForceAverages(20, timeArray, forceArray)
+        variancesDict = self.plusMinusForceVariances(20, timeArray, forceArray)
         zeroStateForceArray = self.convertToForce(zeroState, zeroPeakPosition, expPara)
         oneStateForceArray = self.convertToForce(oneState, zeroPeakPosition, expPara)
         twoStateForceArray = self.convertToForce(twoState, zeroPeakPosition, expPara)
@@ -160,20 +164,53 @@ class BFPData:
         plt.ylabel('BFP State')
         plt.xlabel('Time')
 
+        plt.figure(3)
+        plt.plot(averagesDict['time'], averagesDict['averages'])
+        plt.ylabel('Averages')
+        plt.xlabel('Time')
 
+        plt.figure(4)
+        plt.plot(variancesDict['time'], variancesDict['variances'])
+        plt.ylabel('Variances')
+        plt.xlabel('Time')
 
         plt.show()
+        pass
+
+    def plusMinusForceAverages(self, plusMinusIndex, timeArray, forceArray):
+        averages = []
+        for i in range(0, len(timeArray)):
+            if (i >= plusMinusIndex/2) and (i < (len(timeArray)-(plusMinusIndex/2))):
+                averageForTime = np.average(forceArray[i-plusMinusIndex/2:i+plusMinusIndex/2])
+                averages.append(averageForTime)
+        averageArray = np.array(averages)
+        timeNArray = np.array(timeArray[plusMinusIndex:len(timeArray)])
+        averagesDict = {'averages': averageArray, 'time': timeNArray}
+        return averagesDict
+
+
+    def plusMinusForceVariances(self, plusMinusIndex, timeArray, forceArray):
+        variances = []
+        for i in range(0, len(timeArray)):
+            if (i >= plusMinusIndex/2) and (i < (len(timeArray)-(plusMinusIndex/2))):
+                varianceForTime = np.var(forceArray[i-plusMinusIndex/2:i+plusMinusIndex/2])
+                variances.append(varianceForTime)
+        varianceArray = np.array(variances)
+        timeNArray = np.array(timeArray[plusMinusIndex:len(timeArray)])
+        variancesDict = {'variances': varianceArray, 'time': timeNArray}
+        return variancesDict
 
     def parseFilesInDirectory(self):
         if self.currentDirectory != None:
             fileList = os.listdir(self.currentDirectory)
             for file in fileList:
-                currentPath = os.path.join(self.currentDirectory, file)
-                if os.path.isdir(currentPath):
-                    pass
-                if os.path.isfile(currentPath):
-                    self.currentFile = open(currentPath, 'r')
-                    self.parseFile()
+                if file == '20151201_GC-VWF_17-1_2':
+                    currentPath = os.path.join(self.currentDirectory, file)
+                    if os.path.isdir(currentPath):
+                        pass
+                    if os.path.isfile(currentPath):
+                        self.currentFile = open(currentPath, 'r')
+                        self.parseFile()
 
     def setCurrentFileDirectory(self, dataDirectory):
         if os.path.isdir(dataDirectory):
