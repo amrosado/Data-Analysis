@@ -3,11 +3,17 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as scistats
+import pickle
+import json
+import csv
 
 class BFPData:
     currentDirectory = None
     currentFile = None
+    currentFileName = None
     currentFileData = None
+    currentCycleData = None
+    currentCycleIndex = None
     allData = []
 
     def parseFile(self):
@@ -108,6 +114,7 @@ class BFPData:
                 self.analyzeExperimentalData(cycleData)
 
     def analyzeCycleInCurrentFile(self, cycleIndex):
+        self.currentCycleIndex = cycleIndex
         for i in range(0, len(self.currentFileData)):
             if cycleIndex == i:
                 self.analyzeExperimentalData(self.currentFileData[i])
@@ -236,6 +243,9 @@ class BFPData:
 
 
         plt.figure(1)
+        plt.plot(timeStamps, mainPeakPositions)
+
+        plt.figure(6)
         plt.plot(timeStamps, stateHolder)
         plt.title('BFP State vs Time')
         plt.xlabel('Time in Seconds (s)')
@@ -349,6 +359,39 @@ class BFPData:
 
         # plt.figure(4)
         # plt.plot(movingTime, movingNormality)
+
+    def setCurrentCycle(self, cycleIndex):
+        if self.currentFileData != None:
+            self.currentCycleIndex = cycleIndex
+            self.currentCycleData = self.currentFileData[cycleIndex]
+
+    def exportCurrentCycleCsvInCurrentFile(self):
+        if self.currentFileData != None:
+            if self.currentCycleIndex != None:
+                if self.currentCycleData != None:
+                    csvFileName = self.currentFileName + 'cycleIndex' + str(self.currentCycleIndex) + '.csv'
+                    csvFilePath = os.path.join(self.currentDirectory, csvFileName)
+                    csvFile = open(csvFilePath, 'w', newline='')
+
+                    fieldNames = ['timeStamp', 'bfpState', 'piezoVoltage', 'peakPixelPosition']
+
+                    cycleWriter = csv.writer(csvFile, dialect='excel')
+
+                    cycleData = self.currentCycleData
+
+                    cycleWriter.writerow(fieldNames)
+
+                    expParameters = np.array(cycleData['experimentParameters'])
+                    timeStamps = np.array(cycleData['timeStamps'])
+                    bfpStates = np.array(cycleData['bfpStates'])
+                    piezoVoltages = np.array(cycleData['piezoVoltages'])
+                    mainPeakPositions = np.array(cycleData['mainPeakPositions'])
+
+                    for i in range(0, len(timeStamps)):
+                        cycleWriter.writerow([timeStamps[i], bfpStates[i], piezoVoltages[i], mainPeakPositions[i]])
+
+                    csvFile.close()
+                    pass
 
     def movingAverage(self, cycleData, numOfPointsToAverage):
         expParameters = np.array(cycleData['experimentParameters'])
@@ -485,6 +528,7 @@ class BFPData:
                     pass
                 if os.path.isfile(currentPath):
                     self.currentFile = open(currentPath, 'r')
+                    self.currentFileName = file
                     self.parseFile()
 
     def parseFileInDirectory(self, fileName):
@@ -497,6 +541,7 @@ class BFPData:
                         pass
                     if os.path.isfile(currentPath):
                         self.currentFile = open(currentPath, 'r')
+                        self.currentFileName = fileName
                         self.parseFile()
 
     def setCurrentFile(self, fileName):
@@ -508,11 +553,43 @@ class BFPData:
                     if os.path.isdir(currentPath):
                         pass
                     if os.path.isfile(currentPath):
+                        self.currentFileName = fileName
                         self.currentFile = open(currentPath, 'r')
 
     def setCurrentFileDirectory(self, dataDirectory):
         if os.path.isdir(dataDirectory):
             self.currentDirectory = dataDirectory
+
+    def runAnalysisOnCycle(self, analysisType, cycleData):
+        pass
+
+    def saveCurrenFileDataIntoPickle(self):
+        if self.currentDirectory != None:
+            pickleFileName = self.currentFileName + '.pickle'
+            path = os.path.join(self.currentDirectory, pickleFileName)
+            file = open(path, 'wb')
+            pickleDump = pickle.dumps(self.currentFileData)
+            file.write(pickleDump)
+            file.close()
+        else:
+            if self.currentFileName != None:
+                pickleFileName = self.currentFileName + '.pickle'
+                file = open(pickleFileName, 'wb')
+                pickleDump = pickle.dumps(self.currentFileData)
+                file.write(pickleDump)
+                file.close()
+
+    def loadFileDataFromPickle(self, fileName):
+        if self.currentDirectory != None:
+            path = os.path.join(self.currentDirectory, fileName)
+            if os.path.isfile(path):
+                file = open(path, 'rb')
+                self.currentFileName = fileName[0:(len(fileName)-7)]
+                self.currentFileData = pickle.loads(file.read())
+        else:
+            if os.path.isfile(fileName):
+                file = open(fileName, 'rb')
+                self.currentFileData = pickle.loads(file.read())
 
     def __init__(self):
         pass
@@ -521,6 +598,10 @@ class BFPData:
 dataApi = BFPData()
 dataApi.setCurrentFileDirectory('../SampleData')
 #dataApi.parseFilesInDirectory()
-dataApi.setCurrentFile('20151201_GC-VWF_17-1_2')
-dataApi.parseFile()
+#dataApi.setCurrentFile('20151201_GC-VWF_17-1_2')
+#dataApi.parseFile()
+#dataApi.saveCurrenFileDataIntoPickle()
+dataApi.loadFileDataFromPickle('20151201_GC-VWF_17-1_2.pickle')
+#dataApi.setCurrentCycle(51)
+#dataApi.exportCurrentCycleCsvInCurrentFile()
 dataApi.analyzeCycleInCurrentFile(51)
